@@ -12,18 +12,40 @@ const app = express();
 // Connect to MongoDB
 connectDB();
 
-// CORS Configuration - VIKTIGT
-app.use(cors({
-    origin: CLIENT_URL,  // http://localhost:5173
+// 🔒 CORS Configuration – stöd för flera origins (Netlify + localhost)
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://miniforum123.netlify.app", // 🔹 din Netlify-app
+];
+
+// Om du även vill kunna ändra via miljövariabel (t.ex. i Render):
+if (CLIENT_URL) {
+  allowedOrigins.push(CLIENT_URL);
+}
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // tillåt Postman/ingen origin (t.ex. curl)
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.warn(`🚫 Blocked by CORS: ${origin}`);
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token']
-}));
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token"],
+  })
+);
 
 // Security middleware
-app.use(helmet({
-    crossOriginResourcePolicy: { policy: "cross-origin" }
-}));
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  })
+);
 
 // app.use(mongoSanitize());
 app.use(express.json());
@@ -35,11 +57,11 @@ app.use("/api/auth", authRouter);
 
 // Health check
 app.get("/health", (req, res) => {
-    res.status(200).json({ status: "ok", message: "Auth server is running" });
+  res.status(200).json({ status: "ok", message: "Auth server is running" });
 });
 
 // Start server
 app.listen(PORT, () => {
-    console.log(`Auth server running on port ${PORT}`);
-    console.log(`CORS enabled for: ${CLIENT_URL}`);
+  console.log(`✅ Auth server running on port ${PORT}`);
+  console.log(`🌍 Allowed origins: ${allowedOrigins.join(", ")}`);
 });
